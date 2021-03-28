@@ -95,10 +95,25 @@ func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 
 	published := item.PublishedTime().Format("2006-01-02 15.04.05")
 	title := strings.ReplaceAll(item.Title, "/", "_")
-	target := fmt.Sprintf("[%s][%s][%s].html", item.Origin.Title, published, title)
-	_, err = os.Stat(target)
-	if err == nil || !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("file %s exist", target)
+
+	var target string
+	var index int
+	for {
+		var indexN string
+		if index > 0 {
+			indexN = fmt.Sprintf(".%d", index)
+		}
+
+		target = fmt.Sprintf("[%s][%s][%s]%s.html", item.Origin.Title, published, title, indexN)
+		index += 1
+
+		_, err = os.Stat(target)
+		if err == nil || !errors.Is(err, os.ErrNotExist) {
+			log.Printf("file %s exist", target)
+			continue
+		}
+
+		break
 	}
 
 	if c.Verbose {
@@ -180,6 +195,7 @@ func (c *ConvertStarred) downloadImages(doc *goquery.Document) map[string]string
 
 			err := c.download(downloadFiles[src], src)
 			if err != nil {
+				delete(downloadFiles, src)
 				log.Printf("download %s fail: %s", src, err)
 			}
 
