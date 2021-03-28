@@ -90,6 +90,13 @@ func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 		c.changeRef(img, downloads)
 	})
 
+	if doc.Find("title").Length() == 0 {
+		doc.Find("head").AppendHtml(fmt.Sprintf("<title>%s</title>", html.EscapeString(item.Title)))
+	}
+	if doc.Find("title").Text() == "" {
+		doc.Find("title").SetText(item.Title)
+	}
+
 	htm, err := doc.Html()
 	if err != nil {
 		return fmt.Errorf("cannot generate html: %s", err)
