@@ -219,15 +219,17 @@ func (c *ConvertStarred) download(path string, src string) (err error) {
 	timeout, cancel := context.WithTimeout(context.TODO(), time.Minute*2)
 	defer cancel()
 
-	info, err := os.Stat(path)
-	if err == nil {
+	stat, err := os.Stat(path)
+	if err == nil && stat.Size() > 0 {
 		headReq, headErr := http.NewRequestWithContext(timeout, http.MethodHead, src, nil)
 		if headErr != nil {
 			return headErr
 		}
 		resp, headErr := c.client.Do(headReq)
-		if headErr == nil && info.Size() == resp.ContentLength {
-			return // skip download
+		if headErr == nil {
+			if resp.ContentLength > 0 && resp.ContentLength == stat.Size() {
+				return // skip download
+			}
 		}
 	}
 
