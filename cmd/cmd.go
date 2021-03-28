@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gonejack/inoreader-starred/model"
+	"github.com/gonejack/inostar/model"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/dustin/go-humanize"

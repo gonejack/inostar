@@ -1,4 +1,4 @@
-module github.com/gonejack/inoreader-starred
+module github.com/gonejack/inostar
 
 go 1.16
 

@@ -4,14 +4,14 @@ import (
 	"log"
 	"os"
 
-	"github.com/gonejack/inoreader-starred/cmd"
+	"github.com/gonejack/inostar/cmd"
 	"github.com/spf13/cobra"
 )
 
 var (
 	verbose = false
 	prog    = &cobra.Command{
-		Use:   "inoreader-starred *.json",
+		Use:   "inostar *.json",
 		Short: "Command line tool for converting inoreader starred.json to html",
 		Run: func(c *cobra.Command, args []string) {
 			err := run(c, args)

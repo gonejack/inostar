@@ -1,23 +1,23 @@
-# inoreader-starred
+# inostar
 Command line for converting inoreader starred.json to html
 
 ### Install
 ```shell
-> go get github.com/gonejack/inoreader-starred
+> go get github.com/gonejack/inostar
 ```
 
 ### Usage
 ```shell
-> inoreader-starred starred.json
+> inostar starred.json
 ```
 ```
 Command line tool for converting inoreader starred.json to html
 
 Usage:
-  inoreader-starred *.json [flags]
+  inostar *.json [flags]
 
 Flags:
   -v, --verbose   verbose
-  -h, --help      help for inoreader-starred
+  -h, --help      help for inostar
 
 ```
