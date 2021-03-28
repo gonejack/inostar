@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gonejack/inostar/model"
@@ -96,7 +97,7 @@ func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 
 	origin := html.UnescapeString(item.Origin.Title)
 	published := item.PublishedTime().Format("2006-01-02 15.04.05")
-	title := strings.ReplaceAll(html.UnescapeString(item.Title), "/", "_")
+	title := html.UnescapeString(item.Title)
 	indexN := ""
 	target := ""
 
@@ -118,6 +119,7 @@ func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 
 		break
 	}
+	target = strings.ReplaceAll(target, "/", "_")
 
 	if c.Verbose {
 		log.Printf("save %s", target)
@@ -185,6 +187,7 @@ func (c *ConvertStarred) downloadImages(doc *goquery.Document) map[string]string
 	var batch = semaphore.NewWeighted(3)
 	var group errgroup.Group
 
+	var mutex sync.Mutex
 	for i := range downloadLinks {
 		_ = batch.Acquire(context.TODO(), 1)
 
@@ -198,7 +201,9 @@ func (c *ConvertStarred) downloadImages(doc *goquery.Document) map[string]string
 
 			err := c.download(downloadFiles[src], src)
 			if err != nil {
+				mutex.Lock()
 				delete(downloadFiles, src)
+				mutex.Unlock()
 				log.Printf("download %s fail: %s", src, err)
 			}
 
