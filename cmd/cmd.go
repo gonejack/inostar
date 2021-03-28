@@ -270,8 +270,10 @@ func (c *ConvertStarred) download(path string, src string) (err error) {
 		return fmt.Errorf("response status code %d invalid", response.StatusCode)
 	}
 
-	if err == nil && written < response.ContentLength {
-		err = fmt.Errorf("expected %s but downloaded %s", humanize.Bytes(uint64(response.ContentLength)), humanize.Bytes(uint64(written)))
+	if err == nil {
+		if written == 0 || written < response.ContentLength {
+			err = fmt.Errorf("expected %s but downloaded %s", humanize.Bytes(uint64(response.ContentLength)), humanize.Bytes(uint64(written)))
+		}
 	}
 
 	return
