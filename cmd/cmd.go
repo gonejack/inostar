@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"io/ioutil"
 	"log"
@@ -93,23 +94,25 @@ func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 		return fmt.Errorf("cannot generate html: %s", err)
 	}
 
+	origin := html.UnescapeString(item.Origin.Title)
 	published := item.PublishedTime().Format("2006-01-02 15.04.05")
-	title := strings.ReplaceAll(item.Title, "/", "_")
+	title := strings.ReplaceAll(html.UnescapeString(item.Title), "/", "_")
+	indexN := ""
+	target := ""
 
-	var target string
 	var index int
 	for {
-		var indexN string
-		if index > 0 {
-			indexN = fmt.Sprintf(".%d", index)
-		}
-
-		target = fmt.Sprintf("[%s][%s][%s]%s.html", item.Origin.Title, published, title, indexN)
-		index += 1
+		target = fmt.Sprintf("[%s][%s][%s]%s.html", origin, published, title, indexN)
 
 		_, err = os.Stat(target)
 		if err == nil || !errors.Is(err, os.ErrNotExist) {
 			log.Printf("file %s exist", target)
+
+			index += 1
+			if index > 0 {
+				indexN = fmt.Sprintf("[%d]", index)
+			}
+
 			continue
 		}
 
