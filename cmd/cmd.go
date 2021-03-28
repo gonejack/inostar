@@ -49,9 +49,8 @@ func (c *ConvertStarred) Execute(jsons []string) error {
 		}
 
 		for _, item := range starred.Items {
-			if c.Verbose {
-				log.Printf("processing %s", item.Title)
-			}
+			log.Printf("processing %s", item.Title)
+
 			err = c.convertItem(item)
 			if err != nil {
 				return err
@@ -96,7 +95,7 @@ func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 
 	published := item.PublishedTime().Format("2006-01-02 15.04.05")
 	title := strings.ReplaceAll(item.Title, "/", "_")
-	target := fmt.Sprintf("[%s][%s][%s].html", published, item.Origin.Title, title)
+	target := fmt.Sprintf("[%s][%s][%s].html", item.Origin.Title, published, title)
 	_, err = os.Stat(target)
 	if err == nil || !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("file %s exist", target)
@@ -133,6 +132,7 @@ func (c *ConvertStarred) changeRef(img *goquery.Selection, downloads map[string]
 			log.Printf("replace %s as %s", src, localFile)
 		}
 
+		img.SetAttr("data-origin-src", src)
 		img.SetAttr("src", localFile)
 	default:
 		log.Printf("unsupported image reference[src=%s]", src)
