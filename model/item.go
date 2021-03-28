@@ -62,7 +62,7 @@ func (i *Item) ContentFooter() string {
 <a style="display: block; display: inline-block; border-top: 1px solid #ccc; padding-top: 5px; color: #666; text-decoration: none;"
    href="{link}">{link}</a>
 <p style="color:#999;">Save with <a style="color:#666; text-decoration:none; font-weight: bold;" 
-									href="https://github.com/gonejack/inostar">Inostar</a>
+									href="https://github.com/gonejack/inostar">inostar</a>
 </p>`
 
 	replacer := strings.NewReplacer(
