@@ -11,13 +11,11 @@ Command line for converting inoreader starred.json to html
 > inostar starred.json
 ```
 ```
-Command line tool for converting inoreader starred.json to html
-
 Usage:
   inostar *.json [flags]
 
 Flags:
+  -e, --offline   download remote images and replace html <img> references
   -v, --verbose   verbose
   -h, --help      help for inostar
-
 ```

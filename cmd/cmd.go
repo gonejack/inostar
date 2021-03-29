@@ -29,7 +29,9 @@ import (
 type ConvertStarred struct {
 	client    http.Client
 	ImagesDir string
-	Verbose   bool
+
+	Offline bool
+	Verbose bool
 }
 
 func (c *ConvertStarred) Execute(jsons []string) error {
@@ -37,9 +39,11 @@ func (c *ConvertStarred) Execute(jsons []string) error {
 		return errors.New("no json given")
 	}
 
-	err := c.mkdirs()
-	if err != nil {
-		return err
+	if c.Offline {
+		err := c.mkdirs()
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, path := range jsons {
@@ -82,13 +86,14 @@ func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 	if err != nil {
 		return fmt.Errorf("cannot parse HTML: %s", err)
 	}
-
 	doc = c.cleanDoc(doc)
-	downloads := c.downloadImages(doc)
 
-	doc.Find("img").Each(func(i int, img *goquery.Selection) {
-		c.changeRef(img, downloads)
-	})
+	if c.Offline {
+		downloads := c.downloadImages(doc)
+		doc.Find("img").Each(func(i int, img *goquery.Selection) {
+			c.changeRef(img, downloads)
+		})
+	}
 
 	if doc.Find("title").Length() == 0 {
 		doc.Find("head").AppendHtml(fmt.Sprintf("<title>%s</title>", html.EscapeString(item.Title)))
@@ -105,27 +110,7 @@ func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 	origin := html.UnescapeString(item.Origin.Title)
 	published := item.PublishedTime().Format("2006-01-02 15.04.05")
 	title := html.UnescapeString(item.Title)
-	indexN := ""
-	target := ""
-
-	var index int
-	for {
-		target = fmt.Sprintf("[%s][%s][%s]%s.html", origin, published, title, indexN)
-
-		_, err = os.Stat(target)
-		if err == nil || !errors.Is(err, os.ErrNotExist) {
-			log.Printf("file %s exist", target)
-
-			index += 1
-			if index > 0 {
-				indexN = fmt.Sprintf("[%d]", index)
-			}
-
-			continue
-		}
-
-		break
-	}
+	target := fmt.Sprintf("[%s][%s][%s].html", origin, published, title)
 	target = strings.ReplaceAll(target, "/", "_")
 
 	if c.Verbose {

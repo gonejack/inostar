@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	offline = false
 	verbose = false
 	prog    = &cobra.Command{
 		Use:   "inostar *.json",
@@ -28,6 +29,13 @@ func init() {
 	prog.Flags().SortFlags = false
 	prog.PersistentFlags().SortFlags = false
 	prog.PersistentFlags().BoolVarP(
+		&offline,
+		"offline",
+		"e",
+		false,
+		"download remote images and replace html <img> references",
+	)
+	prog.PersistentFlags().BoolVarP(
 		&verbose,
 		"verbose",
 		"v",
@@ -39,6 +47,7 @@ func init() {
 func run(c *cobra.Command, args []string) error {
 	exec := cmd.ConvertStarred{
 		ImagesDir: "images",
+		Offline:   offline,
 		Verbose:   verbose,
 	}
 	return exec.Execute(args)
