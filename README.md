@@ -5,7 +5,6 @@ Command line for converting inoreader starred.json to html
 ![Build](https://github.com/gonejack/inostar/actions/workflows/go.yml/badge.svg)
 [![GitHub license](https://img.shields.io/github/license/gonejack/inostar.svg?color=blue)](LICENSE)
 
-
 ### Install
 ```shell
 > go get github.com/gonejack/inostar
