@@ -40,7 +40,7 @@ func (c *ConvertStarred) Execute(jsons []string) error {
 	}
 
 	if c.Offline {
-		err := c.mkdirs()
+		err := c.mkdir()
 		if err != nil {
 			return err
 		}
@@ -276,9 +276,12 @@ func (_ *ConvertStarred) cleanDoc(doc *goquery.Document) *goquery.Document {
 	// remove inoreader ads
 	doc.Find("body").Find(`div:contains("ads from inoreader")`).Closest("center").Remove()
 
+	// remove solidot.org ads
+	doc.Find("img[src='https://img.solidot.org//0/446/liiLIZF8Uh6yM.jpg']").Remove()
+
 	return doc
 }
-func (c *ConvertStarred) mkdirs() error {
+func (c *ConvertStarred) mkdir() error {
 	err := os.MkdirAll(c.ImagesDir, 0777)
 	if err != nil {
 		return fmt.Errorf("cannot make images dir %s", err)
