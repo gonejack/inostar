@@ -10,5 +10,11 @@ type Starred struct {
 }
 
 func (s *Starred) FromJSON(reader io.Reader) (*Starred, error) {
-	return s, json.NewDecoder(reader).Decode(s)
+	err := json.NewDecoder(reader).Decode(s)
+	if err == nil {
+		for _, item := range s.Items {
+			item.DecodeFields()
+		}
+	}
+	return s, err
 }

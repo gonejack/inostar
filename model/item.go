@@ -33,10 +33,14 @@ type Item struct {
 	} `json:"origin"`
 }
 
+func (i *Item) DecodeFields() {
+	i.Title = html.UnescapeString(i.Title)
+	i.Origin.Title = html.UnescapeString(i.Origin.Title)
+}
+
 func (i *Item) PatchedContent() string {
 	return fmt.Sprintf("%s %s %s", i.ContentHeader(), i.Summary.Content, i.ContentFooter())
 }
-
 func (i *Item) ContentHeader() string {
 	const tpl = `
 <p>
@@ -55,7 +59,6 @@ func (i *Item) ContentHeader() string {
 
 	return replacer.Replace(tpl)
 }
-
 func (i *Item) ContentFooter() string {
 	const tpl = `
 <br/><br/>
@@ -71,14 +74,12 @@ func (i *Item) ContentFooter() string {
 
 	return replacer.Replace(tpl)
 }
-
 func (i *Item) Link() string {
 	if len(i.Canonical) > 0 {
 		return i.Canonical[0].Href
 	}
 	return i.Origin.HtmlUrl
 }
-
 func (i *Item) PublishedTime() time.Time {
 	return time.Unix(i.Published, 0)
 }

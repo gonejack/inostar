@@ -107,11 +107,10 @@ func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 		return fmt.Errorf("cannot generate html: %s", err)
 	}
 
-	origin := html.UnescapeString(item.Origin.Title)
+	origin := forbiddenCharsReplacer.Replace(item.Origin.Title)
+	title := forbiddenCharsReplacer.Replace(item.Title)
 	published := item.PublishedTime().Format("2006-01-02 15.04.05")
-	title := html.UnescapeString(item.Title)
 	target := fmt.Sprintf("[%s][%s][%s].html", origin, published, title)
-	target = strings.ReplaceAll(target, "/", "_")
 
 	if c.Verbose {
 		log.Printf("save %s", target)
@@ -293,3 +292,15 @@ func (c *ConvertStarred) mkdir() error {
 func md5str(s string) string {
 	return fmt.Sprintf("%x", md5.Sum([]byte(s)))
 }
+
+var forbiddenCharsReplacer = strings.NewReplacer(
+	`<`, `#l`,
+	`>`, `#g`,
+	`:`, `#c`,
+	`"`, `#d`,
+	`/`, `#s`,
+	`\`, `#b`,
+	`|`, `#p`,
+	`?`, `#q`,
+	`*`, `#a`,
+)
