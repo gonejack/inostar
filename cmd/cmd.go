@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -107,10 +108,9 @@ func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 		return fmt.Errorf("cannot generate html: %s", err)
 	}
 
-	origin := forbiddenCharsReplacer.Replace(item.Origin.Title)
-	title := forbiddenCharsReplacer.Replace(item.Title)
 	published := item.PublishedTime().Format("2006-01-02 15.04.05")
-	target := fmt.Sprintf("[%s][%s][%s].html", origin, published, title)
+	target := fmt.Sprintf("[%s][%s][%s].html", item.Origin.Title, published, item.Title)
+	target = sanitizeFilename(target)
 
 	if c.Verbose {
 		log.Printf("save %s", target)
@@ -293,14 +293,8 @@ func md5str(s string) string {
 	return fmt.Sprintf("%x", md5.Sum([]byte(s)))
 }
 
-var forbiddenCharsReplacer = strings.NewReplacer(
-	`<`, `#l`,
-	`>`, `#g`,
-	`:`, `#c`,
-	`"`, `#d`,
-	`/`, `#s`,
-	`\`, `#b`,
-	`|`, `#p`,
-	`?`, `#q`,
-	`*`, `#a`,
-)
+var forbiddenRunes = regexp.MustCompile(`[<>:"/\\|?*]`)
+
+func sanitizeFilename(name string) string {
+	return forbiddenRunes.ReplaceAllString(name, ".")
+}
