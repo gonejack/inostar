@@ -109,7 +109,12 @@ func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 	}
 
 	published := item.PublishedTime().Format("2006-01-02 15.04.05")
-	target := fmt.Sprintf("[%s][%s][%s].html", item.Origin.Title, published, item.Title)
+
+	title := item.Title
+	if len(title) > 30 {
+		title = title[:30] + "..."
+	}
+	target := fmt.Sprintf("[%s][%s][%s].html", item.Origin.Title, published, title)
 	target = sanitizeFilename(target)
 
 	if c.Verbose {
