@@ -115,7 +115,7 @@ func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 		title = title[:30] + "..."
 	}
 	target := fmt.Sprintf("[%s][%s][%s].html", item.Origin.Title, published, title)
-	target = sanitizeFilename(target)
+	target = safeFileName(target)
 
 	if c.Verbose {
 		log.Printf("save %s", target)
@@ -154,7 +154,6 @@ func (c *ConvertStarred) changeRef(img *goquery.Selection, downloads map[string]
 		log.Printf("unsupported image reference[src=%s]", src)
 	}
 }
-
 func (c *ConvertStarred) downloadImages(doc *goquery.Document) map[string]string {
 	downloadFiles := make(map[string]string)
 	downloadLinks := make([]string, 0)
@@ -210,6 +209,23 @@ func (c *ConvertStarred) downloadImages(doc *goquery.Document) map[string]string
 	_ = group.Wait()
 
 	return downloadFiles
+}
+func (_ *ConvertStarred) cleanDoc(doc *goquery.Document) *goquery.Document {
+	// remove inoreader ads
+	doc.Find("body").Find(`div:contains("ads from inoreader")`).Closest("center").Remove()
+
+	// remove solidot.org ads
+	doc.Find("img[src='https://img.solidot.org//0/446/liiLIZF8Uh6yM.jpg']").Remove()
+
+	return doc
+}
+func (c *ConvertStarred) mkdir() error {
+	err := os.MkdirAll(c.ImagesDir, 0777)
+	if err != nil {
+		return fmt.Errorf("cannot make images dir %s", err)
+	}
+
+	return nil
 }
 func (c *ConvertStarred) download(path string, src string) (err error) {
 	timeout, cancel := context.WithTimeout(context.TODO(), time.Minute*2)
@@ -276,30 +292,10 @@ func (c *ConvertStarred) download(path string, src string) (err error) {
 
 	return
 }
-func (_ *ConvertStarred) cleanDoc(doc *goquery.Document) *goquery.Document {
-	// remove inoreader ads
-	doc.Find("body").Find(`div:contains("ads from inoreader")`).Closest("center").Remove()
-
-	// remove solidot.org ads
-	doc.Find("img[src='https://img.solidot.org//0/446/liiLIZF8Uh6yM.jpg']").Remove()
-
-	return doc
-}
-func (c *ConvertStarred) mkdir() error {
-	err := os.MkdirAll(c.ImagesDir, 0777)
-	if err != nil {
-		return fmt.Errorf("cannot make images dir %s", err)
-	}
-
-	return nil
-}
 
 func md5str(s string) string {
 	return fmt.Sprintf("%x", md5.Sum([]byte(s)))
 }
-
-var forbiddenRunes = regexp.MustCompile(`[<>:"/\\|?*]`)
-
-func sanitizeFilename(name string) string {
-	return forbiddenRunes.ReplaceAllString(name, ".")
+func safeFileName(name string) string {
+	return regexp.MustCompile(`[<>:"/\\|?*]`).ReplaceAllString(name, ".")
 }
