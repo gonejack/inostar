@@ -17,11 +17,11 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/gonejack/inostar/model"
+	"unicode/utf8"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/dustin/go-humanize"
+	"github.com/gonejack/inostar/model"
 	"github.com/schollz/progressbar/v3"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
@@ -111,8 +111,8 @@ func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 	published := item.PublishedTime().Format("2006-01-02 15.04.05")
 
 	title := item.Title
-	if len(title) > 30 {
-		title = title[:30] + "..."
+	if utf8.RuneCountInString(title) > 30 {
+		title = string([]rune(title)[:30]) + "..."
 	}
 	target := fmt.Sprintf("[%s][%s][%s].html", item.Origin.Title, published, title)
 	target = safeFileName(target)
