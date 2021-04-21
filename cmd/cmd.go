@@ -1,12 +1,10 @@
 package cmd
 
 import (
-	"context"
 	"crypto/md5"
 	"errors"
 	"fmt"
 	"html"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -15,16 +13,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 	"unicode/utf8"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/dustin/go-humanize"
+	"github.com/gonejack/get"
 	"github.com/gonejack/inostar/model"
-	"github.com/schollz/progressbar/v3"
-	"golang.org/x/sync/errgroup"
-	"golang.org/x/sync/semaphore"
 )
 
 type ConvertStarred struct {
@@ -90,9 +84,9 @@ func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 	doc = c.cleanDoc(doc)
 
 	if c.Offline {
-		downloads := c.downloadImages(doc)
+		savedImages := c.saveImages(doc)
 		doc.Find("img").Each(func(i int, img *goquery.Selection) {
-			c.changeRef(img, downloads)
+			c.changeRef(img, savedImages)
 		})
 	}
 
@@ -154,16 +148,17 @@ func (c *ConvertStarred) changeRef(img *goquery.Selection, downloads map[string]
 		log.Printf("unsupported image reference[src=%s]", src)
 	}
 }
-func (c *ConvertStarred) downloadImages(doc *goquery.Document) map[string]string {
-	downloadFiles := make(map[string]string)
-	downloadLinks := make([]string, 0)
+func (c *ConvertStarred) saveImages(doc *goquery.Document) map[string]string {
+	downloads := make(map[string]string)
+
+	var refs, paths []string
 	doc.Find("img").Each(func(i int, img *goquery.Selection) {
 		src, _ := img.Attr("src")
 		if !strings.HasPrefix(src, "http") {
 			return
 		}
 
-		localFile, exist := downloadFiles[src]
+		localFile, exist := downloads[src]
 		if exist {
 			return
 		}
@@ -175,40 +170,19 @@ func (c *ConvertStarred) downloadImages(doc *goquery.Document) map[string]string
 		}
 		localFile = filepath.Join(c.ImagesDir, fmt.Sprintf("%s%s", md5str(src), filepath.Ext(uri.Path)))
 
-		downloadFiles[src] = localFile
-		downloadLinks = append(downloadLinks, src)
+		refs = append(refs, src)
+		paths = append(paths, localFile)
+		downloads[src] = localFile
 	})
 
-	var batch = semaphore.NewWeighted(3)
-	var group errgroup.Group
-
-	var mutex sync.Mutex
-	for i := range downloadLinks {
-		_ = batch.Acquire(context.TODO(), 1)
-
-		src := downloadLinks[i]
-		group.Go(func() error {
-			defer batch.Release(1)
-
-			if c.Verbose {
-				log.Printf("fetch %s", src)
-			}
-
-			err := c.download(downloadFiles[src], src)
-			if err != nil {
-				mutex.Lock()
-				delete(downloadFiles, src)
-				mutex.Unlock()
-				log.Printf("download %s fail: %s", src, err)
-			}
-
-			return nil
-		})
+	getter := get.DefaultGetter()
+	getter.Verbose = c.Verbose
+	eRefs, errs := getter.BatchInOrder(refs, paths, 3, time.Minute*2)
+	for i := range eRefs {
+		log.Printf("download %s fail: %s", eRefs[i], errs[i])
 	}
 
-	_ = group.Wait()
-
-	return downloadFiles
+	return downloads
 }
 func (_ *ConvertStarred) cleanDoc(doc *goquery.Document) *goquery.Document {
 	// remove inoreader ads
@@ -226,71 +200,6 @@ func (c *ConvertStarred) mkdir() error {
 	}
 
 	return nil
-}
-func (c *ConvertStarred) download(path string, src string) (err error) {
-	timeout, cancel := context.WithTimeout(context.TODO(), time.Minute*2)
-	defer cancel()
-
-	stat, err := os.Stat(path)
-	if err == nil && stat.Size() > 0 {
-		headReq, headErr := http.NewRequestWithContext(timeout, http.MethodHead, src, nil)
-		if headErr != nil {
-			return headErr
-		}
-		resp, headErr := c.client.Do(headReq)
-		if headErr == nil {
-			if resp.ContentLength > 0 && resp.ContentLength == stat.Size() {
-				return // skip download
-			}
-		}
-	}
-
-	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
-	if err != nil {
-		return
-	}
-	defer file.Close()
-
-	request, err := http.NewRequestWithContext(timeout, http.MethodGet, src, nil)
-	if err != nil {
-		return
-	}
-	response, err := c.client.Do(request)
-	if err != nil {
-		return
-	}
-	defer response.Body.Close()
-
-	var written int64
-	if c.Verbose {
-		bar := progressbar.NewOptions64(response.ContentLength,
-			progressbar.OptionSetTheme(progressbar.Theme{Saucer: "=", SaucerPadding: ".", BarStart: "|", BarEnd: "|"}),
-			progressbar.OptionSetWidth(10),
-			progressbar.OptionSpinnerType(11),
-			progressbar.OptionShowBytes(true),
-			progressbar.OptionShowCount(),
-			progressbar.OptionSetPredictTime(false),
-			progressbar.OptionSetDescription(filepath.Base(src)),
-			progressbar.OptionSetRenderBlankState(true),
-			progressbar.OptionClearOnFinish(),
-		)
-		defer bar.Clear()
-		written, err = io.Copy(io.MultiWriter(file, bar), response.Body)
-	} else {
-		written, err = io.Copy(file, response.Body)
-	}
-
-	if response.StatusCode < 200 || response.StatusCode > 299 {
-		return fmt.Errorf("response status code %d invalid", response.StatusCode)
-	}
-
-	if err == nil {
-		if written == 0 || written < response.ContentLength {
-			err = fmt.Errorf("expected %s but downloaded %s", humanize.Bytes(uint64(response.ContentLength)), humanize.Bytes(uint64(written)))
-		}
-	}
-
-	return
 }
 
 func md5str(s string) string {
