@@ -50,7 +50,7 @@ func run(c *cobra.Command, args []string) error {
 		Offline:   offline,
 		Verbose:   verbose,
 	}
-	return exec.Execute(args)
+	return exec.Run(args)
 }
 
 func main() {

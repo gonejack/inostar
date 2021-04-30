@@ -14,7 +14,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gonejack/get"
@@ -29,7 +28,7 @@ type ConvertStarred struct {
 	Verbose bool
 }
 
-func (c *ConvertStarred) Execute(jsons []string) error {
+func (c *ConvertStarred) Run(jsons []string) error {
 	if len(jsons) == 0 {
 		return errors.New("no json given")
 	}
@@ -83,13 +82,6 @@ func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 	}
 	doc = c.cleanDoc(doc)
 
-	if c.Offline {
-		savedImages := c.saveImages(doc)
-		doc.Find("img").Each(func(i int, img *goquery.Selection) {
-			c.changeRef(img, savedImages)
-		})
-	}
-
 	if doc.Find("title").Length() == 0 {
 		doc.Find("head").AppendHtml(fmt.Sprintf("<title>%s</title>", html.EscapeString(item.Title)))
 	}
@@ -97,25 +89,32 @@ func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 		doc.Find("title").SetText(item.Title)
 	}
 
+	if c.Offline {
+		imageFiles := c.saveImages(doc)
+		doc.Find("img").Each(func(i int, img *goquery.Selection) {
+			c.changeRef(img, imageFiles)
+		})
+	}
+
+	pubTime := item.PublishedTime()
+	{
+		meta := fmt.Sprintf(`<meta name="inostar:publish" content="%s">`, pubTime.Format(time.RFC1123Z))
+		doc.Find("head").AppendHtml(meta)
+	}
+	feedName := safeTitleLen(item.Origin.Title, 30)
+	itemName := safeTitleLen(item.Title, 30)
+	saving := safeFileName(fmt.Sprintf("[%s][%s][%s].html", feedName, pubTime.Format("2006-01-02 15.04.05"), itemName))
+
+	if c.Verbose {
+		log.Printf("save %s", saving)
+	}
+
 	htm, err := doc.Html()
 	if err != nil {
 		return fmt.Errorf("cannot generate html: %s", err)
 	}
 
-	published := item.PublishedTime().Format("2006-01-02 15.04.05")
-
-	title := item.Title
-	if utf8.RuneCountInString(title) > 30 {
-		title = string([]rune(title)[:30]) + "..."
-	}
-	target := fmt.Sprintf("[%s][%s][%s].html", item.Origin.Title, published, title)
-	target = safeFileName(target)
-
-	if c.Verbose {
-		log.Printf("save %s", target)
-	}
-
-	err = ioutil.WriteFile(target, []byte(htm), 0766)
+	err = ioutil.WriteFile(saving, []byte(htm), 0666)
 	if err != nil {
 		return fmt.Errorf("cannot write html: %s", err)
 	}
@@ -207,4 +206,17 @@ func md5str(s string) string {
 }
 func safeFileName(name string) string {
 	return regexp.MustCompile(`[<>:"/\\|?*]`).ReplaceAllString(name, ".")
+}
+func safeTitleLen(title string, max int) string {
+	var out []rune
+	for i, r := range []rune(title) {
+		if i >= max {
+			if i > 0 {
+				out = append(out, '.', '.', '.')
+			}
+			break
+		}
+		out = append(out, r)
+	}
+	return string(out)
 }
