@@ -17,6 +17,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gonejack/get"
+
 	"github.com/gonejack/inostar/model"
 )
 
@@ -67,10 +68,12 @@ func (c *ConvertStarred) openStarred(filename string) (*model.Starred, error) {
 		return nil, fmt.Errorf("cannot open file: %s", err)
 	}
 	defer file.Close()
+
 	starred, err := new(model.Starred).FromJSON(file)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse json: %s", err)
 	}
+
 	return starred, nil
 }
 func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
