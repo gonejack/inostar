@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -83,7 +84,7 @@ func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 	if err != nil {
 		return fmt.Errorf("cannot parse HTML: %s", err)
 	}
-	doc = c.cleanDoc(doc)
+	doc = c.modifyDoc(doc)
 
 	if doc.Find("title").Length() == 0 {
 		doc.Find("head").AppendHtml(fmt.Sprintf("<title>%s</title>", html.EscapeString(item.Title)))
@@ -186,12 +187,35 @@ func (c *ConvertStarred) saveImages(doc *goquery.Document) map[string]string {
 
 	return downloads
 }
-func (_ *ConvertStarred) cleanDoc(doc *goquery.Document) *goquery.Document {
+func (_ *ConvertStarred) modifyDoc(doc *goquery.Document) *goquery.Document {
 	// remove inoreader ads
 	doc.Find("body").Find(`div:contains("ads from inoreader")`).Closest("center").Remove()
 
 	// remove solidot.org ads
 	doc.Find("img[src='https://img.solidot.org//0/446/liiLIZF8Uh6yM.jpg']").Remove()
+
+	// fix bigboobsjapan.com
+	doc.Find("img").Each(func(i int, img *goquery.Selection) {
+		src, _ := img.Attr("src")
+		if src == "" || !strings.HasPrefix(src, "http") {
+			return
+		}
+
+		u, err := url.Parse(src)
+		if err != nil {
+			return
+		}
+
+		if u.Host == "www.bigboobsjapan.com" {
+			filename := path.Base(u.Path)
+			match := regexp.MustCompile(`(.+)-(\d+x\d+)(\.\w{3,4})`).FindStringSubmatch(filename)
+			if match == nil {
+				return
+			}
+			u.Path = path.Join(path.Dir(u.Path), match[1]+match[3])
+			img.SetAttr("src", u.String())
+		}
+	})
 
 	return doc
 }
