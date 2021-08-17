@@ -180,7 +180,6 @@ func (c *ConvertStarred) saveImages(doc *goquery.Document) map[string]string {
 
 	g := get.DefaultGetter()
 	{
-		g.Verbose = c.Verbose
 		g.BeforeDL = func(ref string, path string) {
 			if c.Verbose {
 				log.Printf("downloading %s => %s", ref, path)
