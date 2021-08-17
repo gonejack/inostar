@@ -178,9 +178,25 @@ func (c *ConvertStarred) saveImages(doc *goquery.Document) map[string]string {
 		downloads[src] = localFile
 	})
 
-	getter := get.DefaultGetter()
-	getter.Verbose = c.Verbose
-	eRefs, errs := getter.BatchInOrder(refs, paths, 3, time.Minute*2)
+	g := get.DefaultGetter()
+	{
+		g.Verbose = c.Verbose
+		g.BeforeDL = func(ref string, path string) {
+			if c.Verbose {
+				log.Printf("downloading %s => %s", ref, path)
+			}
+		}
+		g.AfterDL = func(ref string, path string, err error) {
+			switch {
+			case err != nil:
+				log.Printf("download %s => %s error: %s", ref, path, err)
+			case c.Verbose:
+				log.Printf("download %s => %s done", ref, path)
+			}
+		}
+	}
+
+	eRefs, errs := g.BatchInOrder(refs, paths, 3, time.Minute*2)
 	for i := range eRefs {
 		log.Printf("download %s fail: %s", eRefs[i], errs[i])
 	}
