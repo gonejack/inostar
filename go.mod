@@ -4,6 +4,6 @@ go 1.16
 
 require (
 	github.com/PuerkitoBio/goquery v1.6.1
-	github.com/gonejack/get v1.0.2
+	github.com/gonejack/get v1.0.5
 	github.com/spf13/cobra v1.1.3
 )
