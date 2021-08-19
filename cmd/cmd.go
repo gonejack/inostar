@@ -153,8 +153,8 @@ func (c *ConvertStarred) changeRef(img *goquery.Selection, downloads map[string]
 }
 func (c *ConvertStarred) saveImages(doc *goquery.Document) map[string]string {
 	downloads := make(map[string]string)
+	tasks := get.NewDownloadTasks()
 
-	var refs, paths []string
 	doc.Find("img").Each(func(i int, img *goquery.Selection) {
 		src, _ := img.Attr("src")
 		if !strings.HasPrefix(src, "http") {
@@ -173,32 +173,29 @@ func (c *ConvertStarred) saveImages(doc *goquery.Document) map[string]string {
 		}
 		localFile = filepath.Join(c.ImagesDir, fmt.Sprintf("%s%s", md5str(src), filepath.Ext(uri.Path)))
 
-		refs = append(refs, src)
-		paths = append(paths, localFile)
+		tasks.Add(src, localFile)
 		downloads[src] = localFile
 	})
 
-	g := get.DefaultGetter()
-	{
-		g.BeforeDL = func(ref string, path string) {
-			if c.Verbose {
-				log.Printf("downloading %s => %s", ref, path)
-			}
-		}
-		g.AfterDL = func(ref string, path string, err error) {
-			switch {
-			case err != nil:
-				log.Printf("download %s => %s error: %s", ref, path, err)
-			case c.Verbose:
-				log.Printf("download %s => %s done", ref, path)
-			}
+	g := get.Default()
+	g.OnEachStart = func(t *get.DownloadTask) {
+		if c.Verbose {
+			log.Printf("downloading %s => %s", t.Link, t.Path)
 		}
 	}
-
-	eRefs, errs := g.BatchInOrder(refs, paths, 3, time.Minute*2)
-	for i := range eRefs {
-		log.Printf("download %s fail: %s", eRefs[i], errs[i])
+	g.OnEachStop = func(t *get.DownloadTask) {
+		switch {
+		case t.Err != nil:
+			log.Printf("download %s => %s error: %s", t.Link, t.Path, t.Err)
+		case c.Verbose:
+			log.Printf("download %s => %s done", t.Link, t.Path)
+		}
 	}
+	g.Batch(tasks, 3, time.Minute*2).ForEach(func(t *get.DownloadTask) {
+		if t.Err != nil {
+			log.Printf("download %s fail: %s", t.Link, t.Err)
+		}
+	})
 
 	return downloads
 }
