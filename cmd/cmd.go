@@ -206,6 +206,9 @@ func (_ *ConvertStarred) modifyDoc(doc *goquery.Document) *goquery.Document {
 	// remove solidot.org ads
 	doc.Find("img[src='https://img.solidot.org//0/446/liiLIZF8Uh6yM.jpg']").Remove()
 
+	// remove 36kr ads
+	doc.Find("img[src='https://img.36krcdn.com/20191024/v2_1571894049839_img_jpg']").Closest("p").Remove()
+
 	// fix bigboobsjapan.com
 	doc.Find("img").Each(func(i int, img *goquery.Selection) {
 		src, _ := img.Attr("src")
