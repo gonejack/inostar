@@ -18,6 +18,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gonejack/get"
+	"github.com/yosssi/gohtml"
 
 	"github.com/gonejack/inostar/model"
 )
@@ -79,6 +80,7 @@ func (c *ConvertStarred) openStarred(filename string) (*model.Starred, error) {
 }
 func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 	content := item.PatchedContent()
+	content = gohtml.Format(content)
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
 	if err != nil {
@@ -208,6 +210,12 @@ func (_ *ConvertStarred) modifyDoc(doc *goquery.Document) *goquery.Document {
 
 	// remove 36kr ads
 	doc.Find("img[src='https://img.36krcdn.com/20191024/v2_1571894049839_img_jpg']").Closest("p").Remove()
+
+	// remove zaobao ads
+	doc.Find("img[src='https://www.zaobao.com.sg/themes/custom/zbsg2020/images/default-img.png']").Closest("p").Remove()
+
+	// remove empty div
+	doc.Find("div:empty").Remove()
 
 	// fix bigboobsjapan.com
 	doc.Find("img").Each(func(i int, img *goquery.Selection) {
