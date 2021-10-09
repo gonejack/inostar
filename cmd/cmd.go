@@ -5,12 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"html"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -76,13 +74,13 @@ func (c *Convert) run() error {
 	return nil
 }
 func (c *Convert) openStarred(filename string) (*model.Starred, error) {
-	file, err := os.Open(filename)
+	fd, err := os.Open(filename)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open file: %s", err)
+		return nil, err
 	}
-	defer file.Close()
+	defer fd.Close()
 
-	starred, err := new(model.Starred).FromJSON(file)
+	starred, err := new(model.Starred).FromJSON(fd)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse json: %s", err)
 	}
@@ -108,7 +106,7 @@ func (c *Convert) convertItem(item *model.Item) (err error) {
 	if err != nil {
 		return fmt.Errorf("cannot parse HTML: %s", err)
 	}
-	doc = c.modifyDoc(doc)
+	doc = c.cleanDoc(doc)
 
 	if doc.Find("title").Length() == 0 {
 		doc.Find("head").AppendHtml(fmt.Sprintf("<title>%s</title>", html.EscapeString(item.Title)))
@@ -118,20 +116,19 @@ func (c *Convert) convertItem(item *model.Item) (err error) {
 	}
 
 	if c.Offline {
-		imageFiles := c.saveImages(doc)
+		downloads := c.saveImages(doc)
 		doc.Find("img").Each(func(i int, img *goquery.Selection) {
-			c.changeRef(img, imageFiles)
+			c.changeRef(img, downloads)
 		})
 	}
 
 	pubTime := item.PublishedTime()
-	{
-		meta := fmt.Sprintf(`<meta name="inostar:publish" content="%s">`, pubTime.Format(time.RFC1123Z))
-		doc.Find("head").AppendHtml(meta)
-	}
-	feedName := safeTitleLen(item.Origin.Title, 30)
-	itemName := safeTitleLen(item.Title, 30)
-	output := safeFileName(fmt.Sprintf("[%s][%s][%s].html", feedName, pubTime.Format("2006-01-02 15.04.05"), itemName))
+	meta := fmt.Sprintf(`<meta name="inostar:publish" content="%s">`, pubTime.Format(time.RFC1123Z))
+	doc.Find("head").AppendHtml(meta)
+
+	feedName := fixedLen(item.Origin.Title, 30)
+	itemName := fixedLen(item.Title, 30)
+	output := safeFilename(fmt.Sprintf("[%s][%s][%s].html", feedName, pubTime.Format("2006-01-02 15.04.05"), itemName))
 
 	if c.Verbose {
 		log.Printf("save %s", output)
@@ -142,7 +139,7 @@ func (c *Convert) convertItem(item *model.Item) (err error) {
 		return fmt.Errorf("cannot generate html: %s", err)
 	}
 
-	err = ioutil.WriteFile(output, []byte(htm), 0666)
+	err = os.WriteFile(output, []byte(htm), 0666)
 	if err != nil {
 		return fmt.Errorf("cannot write html: %s", err)
 	}
@@ -223,7 +220,7 @@ func (c *Convert) saveImages(doc *goquery.Document) map[string]string {
 
 	return downloads
 }
-func (_ *Convert) modifyDoc(doc *goquery.Document) *goquery.Document {
+func (_ *Convert) cleanDoc(doc *goquery.Document) *goquery.Document {
 	// remove inoreader ads
 	doc.Find("body").Find(`div:contains("ads from inoreader")`).Closest("center").Remove()
 
@@ -239,48 +236,25 @@ func (_ *Convert) modifyDoc(doc *goquery.Document) *goquery.Document {
 	// remove empty div
 	doc.Find("div:empty").Remove()
 
-	// fix bigboobsjapan.com
-	doc.Find("img").Each(func(i int, img *goquery.Selection) {
-		src, _ := img.Attr("src")
-		if src == "" || !strings.HasPrefix(src, "http") {
-			return
-		}
-
-		u, err := url.Parse(src)
-		if err != nil {
-			return
-		}
-
-		if u.Host == "www.bigboobsjapan.com" {
-			filename := path.Base(u.Path)
-			match := regexp.MustCompile(`(.+)-(\d+x\d+)(\.\w{3,4})`).FindStringSubmatch(filename)
-			if match == nil {
-				return
-			}
-			u.Path = path.Join(path.Dir(u.Path), match[1]+match[3])
-			img.SetAttr("src", u.String())
-		}
-	})
-
 	return doc
 }
 
 func md5str(s string) string {
 	return fmt.Sprintf("%x", md5.Sum([]byte(s)))
 }
-func safeFileName(name string) string {
+func safeFilename(name string) string {
 	return regexp.MustCompile(`[<>:"/\\|?*]`).ReplaceAllString(name, ".")
 }
-func safeTitleLen(title string, max int) string {
-	var out []rune
-	for i, r := range []rune(title) {
+func fixedLen(str string, max int) string {
+	var rs []rune
+	for i, r := range []rune(str) {
 		if i >= max {
 			if i > 0 {
-				out = append(out, '.', '.', '.')
+				rs = append(rs, '.', '.', '.')
 			}
 			break
 		}
-		out = append(out, r)
+		rs = append(rs, r)
 	}
-	return string(out)
+	return string(rs)
 }
