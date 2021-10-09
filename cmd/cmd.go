@@ -29,13 +29,12 @@ type options struct {
 	Verbose bool `short:"v" help:"Verbose printing."`
 	About   bool `help:"Show About."`
 
-	json []string `arg:"" optional:""`
+	JSON []string `arg:"" optional:""`
 }
 type Convert struct {
-	options
-
 	ImagesDir string
 
+	options
 	client http.Client
 }
 
@@ -49,7 +48,7 @@ func (c *Convert) Run() error {
 		fmt.Println("Visit https://github.com/gonejack/inostar")
 		return nil
 	}
-	if len(c.json) == 0 {
+	if len(c.JSON) == 0 {
 		return errors.New("no json given")
 	}
 	if c.Offline {
@@ -61,7 +60,7 @@ func (c *Convert) Run() error {
 	return c.run()
 }
 func (c *Convert) run() error {
-	for _, json := range c.json {
+	for _, json := range c.JSON {
 		log.Printf("procssing %s", json)
 
 		starred, err := c.openStarred(json)
@@ -69,13 +68,9 @@ func (c *Convert) run() error {
 			return err
 		}
 
-		for _, item := range starred.Items {
-			log.Printf("processing %s", item.Title)
-
-			err = c.convertItem(item)
-			if err != nil {
-				return err
-			}
+		err = c.convertStarred(starred)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -93,6 +88,17 @@ func (c *Convert) openStarred(filename string) (*model.Starred, error) {
 	}
 
 	return starred, nil
+}
+func (c *Convert) convertStarred(starred *model.Starred) (err error) {
+	for _, item := range starred.Items {
+		log.Printf("processing %s", item.Title)
+
+		err = c.convertItem(item)
+		if err != nil {
+			return err
+		}
+	}
+	return
 }
 func (c *Convert) convertItem(item *model.Item) (err error) {
 	content := item.PatchedContent()
@@ -125,10 +131,10 @@ func (c *Convert) convertItem(item *model.Item) (err error) {
 	}
 	feedName := safeTitleLen(item.Origin.Title, 30)
 	itemName := safeTitleLen(item.Title, 30)
-	saving := safeFileName(fmt.Sprintf("[%s][%s][%s].html", feedName, pubTime.Format("2006-01-02 15.04.05"), itemName))
+	output := safeFileName(fmt.Sprintf("[%s][%s][%s].html", feedName, pubTime.Format("2006-01-02 15.04.05"), itemName))
 
 	if c.Verbose {
-		log.Printf("save %s", saving)
+		log.Printf("save %s", output)
 	}
 
 	htm, err := doc.Html()
@@ -136,7 +142,7 @@ func (c *Convert) convertItem(item *model.Item) (err error) {
 		return fmt.Errorf("cannot generate html: %s", err)
 	}
 
-	err = ioutil.WriteFile(saving, []byte(htm), 0666)
+	err = ioutil.WriteFile(output, []byte(htm), 0666)
 	if err != nil {
 		return fmt.Errorf("cannot write html: %s", err)
 	}
