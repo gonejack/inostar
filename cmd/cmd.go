@@ -52,9 +52,9 @@ func (c *Convert) Run() error {
 		return errors.New("no json given")
 	}
 	if c.Offline {
-		err := c.mkdir()
+		err := os.MkdirAll(c.ImagesDir, 0777)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot make images dir %s", err)
 		}
 	}
 	return c.run()
@@ -263,14 +263,6 @@ func (_ *Convert) modifyDoc(doc *goquery.Document) *goquery.Document {
 	})
 
 	return doc
-}
-func (c *Convert) mkdir() error {
-	err := os.MkdirAll(c.ImagesDir, 0777)
-	if err != nil {
-		return fmt.Errorf("cannot make images dir %s", err)
-	}
-
-	return nil
 }
 
 func md5str(s string) string {
