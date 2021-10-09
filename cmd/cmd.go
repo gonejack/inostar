@@ -17,36 +17,54 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/alecthomas/kong"
 	"github.com/gonejack/get"
 	"github.com/yosssi/gohtml"
 
 	"github.com/gonejack/inostar/model"
 )
 
-type ConvertStarred struct {
-	client    http.Client
+type options struct {
+	Offline bool `short:"e" help:"Download remote images and replace html references."`
+	Verbose bool `short:"v" help:"Verbose printing."`
+	About   bool `help:"Show About."`
+
+	json []string `arg:"" optional:""`
+}
+type Convert struct {
+	options
+
 	ImagesDir string
 
-	Offline bool
-	Verbose bool
+	client http.Client
 }
 
-func (c *ConvertStarred) Run(jsons []string) error {
-	if len(jsons) == 0 {
+func (c *Convert) Run() error {
+	kong.Parse(&c.options,
+		kong.Name("inostar"),
+		kong.Description("Command line tool for converting inoreader starred.json to html"),
+		kong.UsageOnError(),
+	)
+	if c.About {
+		fmt.Println("Visit https://github.com/gonejack/inostar")
+		return nil
+	}
+	if len(c.json) == 0 {
 		return errors.New("no json given")
 	}
-
 	if c.Offline {
 		err := c.mkdir()
 		if err != nil {
 			return err
 		}
 	}
+	return c.run()
+}
+func (c *Convert) run() error {
+	for _, json := range c.json {
+		log.Printf("procssing %s", json)
 
-	for _, path := range jsons {
-		log.Printf("procssing %s", path)
-
-		starred, err := c.openStarred(path)
+		starred, err := c.openStarred(json)
 		if err != nil {
 			return err
 		}
@@ -60,11 +78,9 @@ func (c *ConvertStarred) Run(jsons []string) error {
 			}
 		}
 	}
-
 	return nil
 }
-
-func (c *ConvertStarred) openStarred(filename string) (*model.Starred, error) {
+func (c *Convert) openStarred(filename string) (*model.Starred, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open file: %s", err)
@@ -78,7 +94,7 @@ func (c *ConvertStarred) openStarred(filename string) (*model.Starred, error) {
 
 	return starred, nil
 }
-func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
+func (c *Convert) convertItem(item *model.Item) (err error) {
 	content := item.PatchedContent()
 	content = gohtml.Format(content)
 
@@ -127,7 +143,7 @@ func (c *ConvertStarred) convertItem(item *model.Item) (err error) {
 
 	return
 }
-func (c *ConvertStarred) changeRef(img *goquery.Selection, downloads map[string]string) {
+func (c *Convert) changeRef(img *goquery.Selection, downloads map[string]string) {
 	img.RemoveAttr("loading")
 	img.RemoveAttr("srcset")
 
@@ -153,7 +169,7 @@ func (c *ConvertStarred) changeRef(img *goquery.Selection, downloads map[string]
 		log.Printf("unsupported image reference[src=%s]", src)
 	}
 }
-func (c *ConvertStarred) saveImages(doc *goquery.Document) map[string]string {
+func (c *Convert) saveImages(doc *goquery.Document) map[string]string {
 	downloads := make(map[string]string)
 	tasks := get.NewDownloadTasks()
 
@@ -201,7 +217,7 @@ func (c *ConvertStarred) saveImages(doc *goquery.Document) map[string]string {
 
 	return downloads
 }
-func (_ *ConvertStarred) modifyDoc(doc *goquery.Document) *goquery.Document {
+func (_ *Convert) modifyDoc(doc *goquery.Document) *goquery.Document {
 	// remove inoreader ads
 	doc.Find("body").Find(`div:contains("ads from inoreader")`).Closest("center").Remove()
 
@@ -242,7 +258,7 @@ func (_ *ConvertStarred) modifyDoc(doc *goquery.Document) *goquery.Document {
 
 	return doc
 }
-func (c *ConvertStarred) mkdir() error {
+func (c *Convert) mkdir() error {
 	err := os.MkdirAll(c.ImagesDir, 0777)
 	if err != nil {
 		return fmt.Errorf("cannot make images dir %s", err)
