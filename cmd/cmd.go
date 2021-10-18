@@ -233,6 +233,9 @@ func (_ *Convert) cleanDoc(doc *goquery.Document) *goquery.Document {
 	// remove zaobao ads
 	doc.Find("img[src='https://www.zaobao.com.sg/themes/custom/zbsg2020/images/default-img.png']").Closest("p").Remove()
 
+	// remove cnbeta ads
+	doc.Find(`strong:contains("访问：")`).Closest("div").Remove()
+
 	// remove empty div
 	doc.Find("div:empty").Remove()
 
