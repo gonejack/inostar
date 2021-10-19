@@ -1,5 +1,5 @@
 # inostar
-Command line for converting inoreader starred.json to html
+This command line converts inoreader's exported starred.json into .html files.
 
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/gonejack/inostar)
 ![Build](https://github.com/gonejack/inostar/actions/workflows/go.yml/badge.svg)
