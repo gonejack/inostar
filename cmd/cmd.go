@@ -61,19 +61,19 @@ func (c *Convert) run() error {
 	for _, json := range c.JSON {
 		log.Printf("procssing %s", json)
 
-		starred, err := c.openStarred(json)
+		starred, err := c.read(json)
 		if err != nil {
 			return err
 		}
 
-		err = c.convertStarred(starred)
+		err = c.convert(starred)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
 }
-func (c *Convert) openStarred(filename string) (*model.Starred, error) {
+func (c *Convert) read(filename string) (*model.Starred, error) {
 	fd, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func (c *Convert) openStarred(filename string) (*model.Starred, error) {
 
 	return starred, nil
 }
-func (c *Convert) convertStarred(starred *model.Starred) (err error) {
+func (c *Convert) convert(starred *model.Starred) (err error) {
 	for _, item := range starred.Items {
 		log.Printf("processing %s", item.Title)
 
@@ -238,6 +238,18 @@ func (_ *Convert) cleanDoc(doc *goquery.Document) *goquery.Document {
 
 	// remove empty div
 	doc.Find("div:empty").Remove()
+
+	// fix image
+	doc.Find("img").Each(func(i int, img *goquery.Selection) {
+		w, _ := img.Attr("width")
+		if w == "0" {
+			img.RemoveAttr("width")
+		}
+		h, _ := img.Attr("height")
+		if h == "0" {
+			img.RemoveAttr("height")
+		}
+	})
 
 	return doc
 }
