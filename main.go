@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/gonejack/inostar/cmd"
+	"github.com/gonejack/inostar/inostar"
 )
 
 func init() {
@@ -12,10 +12,11 @@ func init() {
 }
 
 func main() {
-	c := cmd.Convert{
-		ImagesDir: "images",
+	cmd := inostar.Convert{
+		Options: inostar.MustParseOption(),
 	}
-	if err := c.Run(); err != nil {
+	err := cmd.Run()
+	if err != nil {
 		log.Fatal(err)
 	}
 }

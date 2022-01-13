@@ -1,4 +1,4 @@
-package cmd
+package inostar
 
 import (
 	"crypto/md5"
@@ -15,45 +15,20 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/alecthomas/kong"
 	"github.com/gonejack/get"
 	"github.com/yosssi/gohtml"
 
 	"github.com/gonejack/inostar/model"
 )
 
-type options struct {
-	Offline bool `short:"e" help:"Download remote images and replace html references."`
-	Verbose bool `short:"v" help:"Verbose printing."`
-	About   bool `help:"Show About."`
-
-	JSON []string `arg:"" optional:""`
-}
 type Convert struct {
-	ImagesDir string
-
-	options
+	Options
 	client http.Client
 }
 
 func (c *Convert) Run() error {
-	kong.Parse(&c.options,
-		kong.Name("inostar"),
-		kong.Description("Command line tool for converting inoreader starred.json to html"),
-		kong.UsageOnError(),
-	)
-	if c.About {
-		fmt.Println("Visit https://github.com/gonejack/inostar")
-		return nil
-	}
 	if len(c.JSON) == 0 {
 		return errors.New("no json given")
-	}
-	if c.Offline {
-		err := os.MkdirAll(c.ImagesDir, 0777)
-		if err != nil {
-			return fmt.Errorf("cannot make images dir %s", err)
-		}
 	}
 	return c.run()
 }
@@ -192,6 +167,7 @@ func (c *Convert) saveImages(doc *goquery.Document) map[string]string {
 			log.Printf("parse %s fail: %s", src, err)
 			return
 		}
+		_ = os.MkdirAll(c.ImagesDir, 0766)
 		localFile = filepath.Join(c.ImagesDir, fmt.Sprintf("%s%s", md5str(src), filepath.Ext(uri.Path)))
 
 		tasks.Add(src, localFile)
