@@ -22,7 +22,7 @@ type Options struct {
 
 	ImagesDir string `hidden:"" default:"images"`
 
-	JSON []string `arg:"" optional:""`
+	JSON []string `name:"starred.json" arg:"" optional:""`
 }
 
 func MustParseOption() (opt Options) {
