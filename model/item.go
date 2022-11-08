@@ -1,10 +1,18 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"html"
+	"io"
+	"log"
+	"net/http"
+	"net/url"
+	"regexp"
 	"strings"
 	"time"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 type Canonical struct {
@@ -37,9 +45,102 @@ func (i *Item) DecodeFields() {
 	i.Title = html.UnescapeString(i.Title)
 	i.Origin.Title = html.UnescapeString(i.Origin.Title)
 }
-
 func (i *Item) PatchedContent() string {
+	i.fullBody()
 	return fmt.Sprintf("%s %s %s", i.ContentHeader(), i.Summary.Content, i.ContentFooter())
+}
+func (i *Item) fullBody() {
+	uri := i.Link()
+	u, err := url.Parse(uri)
+	if err != nil {
+		log.Printf("cannot parse link %s", uri)
+		return
+	}
+
+	switch {
+	case strings.HasSuffix(u.Host, "sspai.com"):
+		full, err := i.grabDoc()
+		if err != nil {
+			log.Printf("cannot parse content from %s", uri)
+			return
+		}
+		ct := full.Find("div.article-body div.content").First()
+		ct.Find("*").RemoveAttr("style").RemoveAttr("class")
+		htm, err := ct.Html()
+		if err != nil {
+			log.Printf("cannot generate content of %s", uri)
+			return
+		}
+		i.Summary.Content = htm
+	case strings.HasSuffix(u.Host, "leimao.github.io"):
+		full, err := i.grabDoc()
+		if err != nil {
+			log.Printf("cannot parse content from %s", uri)
+			return
+		}
+		ct := full.Find("article.article div.content").First()
+		ct.Find("*").RemoveAttr("style").RemoveAttr("class")
+		htm, err := ct.Html()
+		if err != nil {
+			log.Printf("cannot generate content of %s", uri)
+			return
+		}
+		i.Summary.Content = htm
+	case strings.HasSuffix(u.Host, "thoughtworks.cn"):
+		full, err := i.grabDoc()
+		if err != nil {
+			log.Printf("cannot parse content from %s", uri)
+			return
+		}
+		ct := full.Find("article.post div.entry-wrap").First()
+		ct.Find("*").RemoveAttr("style").RemoveAttr("class")
+		htm, err := ct.Html()
+		if err != nil {
+			log.Printf("cannot generate content of %s", uri)
+			return
+		}
+		i.Summary.Content = htm
+	case strings.HasSuffix(u.Host, "huxiu.com"):
+		full, err := i.grabDoc()
+		if err != nil {
+			log.Printf("cannot parse content from %s", uri)
+			return
+		}
+		js := full.Find("div.js-video-play-log-report-wrap script").Text()
+		if js == "" {
+			return
+		}
+		ms := regexp.MustCompile(`'(https://.*video\.huxiucdn\.com/[^']+)'`).FindStringSubmatch(js)
+		if len(ms) > 0 {
+			tpl := `<video autoplay controls width="100%%"><source src="%s" type="video/mp4"></video>`
+			video := fmt.Sprintf(tpl, ms[1])
+			i.Summary.Content = video + i.Summary.Content
+		}
+	}
+}
+func (i *Item) grabDoc() (doc *goquery.Document, err error) {
+	timeout, cancel := context.WithTimeout(context.TODO(), time.Second*15)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(timeout, http.MethodGet, i.Link(), nil)
+	if err != nil {
+		return
+	}
+	req.Header.Set("referer", i.Link())
+	req.Header.Set("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:94.0) Gecko/20100101 Firefox/94.0")
+
+	rsp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Printf("cannot grab link %s", i.Link())
+		return
+	}
+	defer rsp.Body.Close()
+	dat, err := io.ReadAll(rsp.Body)
+	if err != nil {
+		return
+	}
+	htm := strings.ReplaceAll(string(dat), "<!--!-->", "")
+	return goquery.NewDocumentFromReader(strings.NewReader(htm))
 }
 func (i *Item) ContentHeader() string {
 	const tpl = `

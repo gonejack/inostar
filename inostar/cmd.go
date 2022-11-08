@@ -136,11 +136,9 @@ func (c *Convert) changeRef(img *goquery.Selection, downloads map[string]string)
 			log.Printf("localfile for %s not exist", src)
 			return
 		}
-
 		if c.Verbose {
 			log.Printf("replace %s as %s", src, localFile)
 		}
-
 		img.SetAttr("data-origin-src", src)
 		img.SetAttr("src", localFile)
 	default:
