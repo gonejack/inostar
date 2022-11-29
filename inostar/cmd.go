@@ -74,15 +74,14 @@ func (c *Convert) convert(starred *model.Starred) (err error) {
 	return
 }
 func (c *Convert) convertItem(item *model.Item) (err error) {
-	content := item.PatchedContent()
-	content = gohtml.Format(content)
+	ct := item.PatchedContent()
+	ct = gohtml.Format(ct)
 
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(ct))
 	if err != nil {
 		return fmt.Errorf("cannot parse HTML: %s", err)
 	}
 	doc = c.cleanDoc(doc)
-
 	if doc.Find("title").Length() == 0 {
 		doc.Find("head").AppendHtml(fmt.Sprintf("<title>%s</title>", html.EscapeString(item.Title)))
 	}
@@ -100,7 +99,6 @@ func (c *Convert) convertItem(item *model.Item) (err error) {
 	pubTime := item.PublishedTime()
 	meta := fmt.Sprintf(`<meta name="inostar:publish" content="%s">`, pubTime.Format(time.RFC1123Z))
 	doc.Find("head").AppendHtml(meta)
-
 	feedName := fixedLen(item.Origin.Title, 30)
 	itemName := fixedLen(item.Title, 30)
 	output := safeFilename(fmt.Sprintf("[%s][%s][%s].html", feedName, pubTime.Format("2006-01-02 15.04.05"), itemName))
@@ -113,12 +111,10 @@ func (c *Convert) convertItem(item *model.Item) (err error) {
 	if err != nil {
 		return fmt.Errorf("cannot generate html: %s", err)
 	}
-
 	err = os.WriteFile(output, []byte(htm), 0666)
 	if err != nil {
 		return fmt.Errorf("cannot write html: %s", err)
 	}
-
 	return
 }
 func (c *Convert) changeRef(img *goquery.Selection, downloads map[string]string) {
