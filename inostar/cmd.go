@@ -34,7 +34,7 @@ func (c *Convert) Run() error {
 }
 func (c *Convert) run() error {
 	for _, json := range c.JSON {
-		log.Printf("procssing %s", json)
+		log.Printf("processing %s", json)
 
 		starred, err := c.read(json)
 		if err != nil {
